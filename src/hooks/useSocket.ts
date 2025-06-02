@@ -15,6 +15,10 @@ export const useSocket = (roomId: string) => {
   const router = useRouter();
 
   useEffect(() => {
+    if (!roomId) {
+      return;
+    }
+
     const token = localStorage.getItem("token");
     if (!token) {
       router.push("/auth/login");
@@ -35,7 +39,6 @@ export const useSocket = (roomId: string) => {
     socketInstance.emit("joinRoom", { roomId });
 
     socketInstance.on("connect_error", (err) => {
-      console.error("Connection error:", err.message);
       if (err.message.includes("Unauthorized")) {
         localStorage.removeItem("token");
         router.push("/auth/login");
@@ -76,7 +79,7 @@ export const useSocket = (roomId: string) => {
   }, [roomId, router]);
 
   const sendMessage = (content: string) => {
-    if (socket) {
+    if (socket && roomId) {
       socket.emit("message", { roomId, content });
     }
   };
