@@ -19,10 +19,6 @@ interface Message {
 
 export default function ChatRoom() {
   const { chatRoomId } = useParams();
-  const roomId = Array.isArray(chatRoomId) ? chatRoomId[0] : chatRoomId;
-  if (!roomId) {
-    return;
-  }
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -31,10 +27,19 @@ export default function ChatRoom() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const { sendMessage, messages: socketMessages } = useSocket(roomId);
+  const roomId = Array.isArray(chatRoomId) ? chatRoomId[0] : chatRoomId;
+
+  const { sendMessage, messages: socketMessages } = useSocket(roomId || "");
+
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
   useEffect(() => {
+    if (!roomId) {
+      setError("Invalid room ID");
+      setIsLoading(false);
+      return;
+    }
+
     const token = localStorage.getItem("token");
     if (!token) {
       router.push("/auth/login");
@@ -71,18 +76,22 @@ export default function ChatRoom() {
     }
 
     fetchMessages();
-  }, [roomId, router]);
+  }, [roomId, router, apiUrl]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, socketMessages]);
 
   const handleSend = () => {
-    if (message.trim()) {
+    if (message.trim() && roomId) {
       sendMessage(message);
       setMessage("");
     }
   };
+
+  if (!roomId) {
+    return <div className="p-4 text-destructive">Invalid room ID</div>;
+  }
 
   if (isLoading) {
     return <div className="p-4">Loading messages...</div>;

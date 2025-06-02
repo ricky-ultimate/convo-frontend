@@ -33,7 +33,6 @@ export default function ChatsPage() {
 
     async function fetchRooms() {
       try {
-        const user = JSON.parse(localStorage.getItem("user") || "{}");
         const res = await fetch(`${apiUrl}/chat/rooms`, {
           method: "GET",
           headers: {
@@ -61,7 +60,7 @@ export default function ChatsPage() {
     }
 
     fetchRooms();
-  }, [router]);
+  }, [router, apiUrl]);
 
   const handleCreateRoom = async () => {
     if (!roomName.trim()) return;
