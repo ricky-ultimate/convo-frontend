@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSocket } from "@/hooks/useSocket";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send } from "lucide-react";
+import { Send, ArrowLeft } from "lucide-react";
 
 interface Message {
   id: string;
@@ -103,7 +103,15 @@ export default function ChatRoom() {
 
   return (
     <div className="flex flex-col h-screen">
-      <div className="border-b p-4">
+      <div className="border-b p-4 flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => router.push("/chats")}
+          className="hover:bg-accent"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
         <h2 className="text-xl font-semibold">Room: {roomId}</h2>
       </div>
 
