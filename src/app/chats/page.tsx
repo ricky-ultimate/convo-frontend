@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
-import { Plus } from "lucide-react";
+import { Plus, DoorOpen } from "lucide-react";
 
 interface ChatRoom {
   id: string;
@@ -21,6 +21,7 @@ export default function ChatsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [roomName, setRoomName] = useState("");
+  const [joinRoomId, setJoinRoomId] = useState("");
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
@@ -88,6 +89,38 @@ export default function ChatsPage() {
     }
   };
 
+  const handleJoinRoom = async () => {
+    if (!joinRoomId.trim()) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${apiUrl}/chat/join`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ roomId: joinRoomId }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to join room");
+      }
+
+      const roomsRes = await fetch(`${apiUrl}/chat/rooms`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const roomsData = await roomsRes.json();
+      setRooms(roomsData);
+      setJoinRoomId("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to join room");
+    }
+  };
+
   if (isLoading) {
     return <div className="p-4">Loading rooms...</div>;
   }
@@ -102,17 +135,32 @@ export default function ChatsPage() {
         <h1 className="text-2xl font-bold">Chat Rooms</h1>
       </div>
 
-      <div className="flex gap-2 mb-6">
-        <Input
-          placeholder="New room name"
-          value={roomName}
-          onChange={(e) => setRoomName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleCreateRoom()}
-        />
-        <Button onClick={handleCreateRoom}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create
-        </Button>
+      <div className="space-y-4 mb-6">
+        <div className="flex gap-2">
+          <Input
+            placeholder="New room name"
+            value={roomName}
+            onChange={(e) => setRoomName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleCreateRoom()}
+          />
+          <Button onClick={handleCreateRoom}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create
+          </Button>
+        </div>
+
+        <div className="flex gap-2">
+          <Input
+            placeholder="Room ID to join"
+            value={joinRoomId}
+            onChange={(e) => setJoinRoomId(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleJoinRoom()}
+          />
+          <Button onClick={handleJoinRoom}>
+            <DoorOpen className="h-4 w-4 mr-2" />
+            Join
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4">
