@@ -157,7 +157,6 @@ export default function ChatRoom() {
       socketSendMessage(message);
       setMessage("");
     } catch (err) {
-      // Use a more specific error handling instead of console.error
       setError(err instanceof Error ? err.message : "Failed to send message");
     } finally {
       setIsSendingMessage(false);

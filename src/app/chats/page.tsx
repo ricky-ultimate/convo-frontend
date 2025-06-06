@@ -166,7 +166,6 @@ export default function ChatsPage() {
         return;
       }
 
-      // Refresh rooms list
       await fetchRooms();
       setJoinRoomId("");
       addToast({
