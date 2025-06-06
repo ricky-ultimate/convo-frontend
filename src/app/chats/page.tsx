@@ -5,7 +5,14 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
-import { Plus, DoorOpen, Copy, Check } from "lucide-react";
+import {
+  Plus,
+  DoorOpen,
+  Copy,
+  Check,
+  Users,
+  MessageCircle,
+} from "lucide-react";
 import { LoadingPage } from "@/components/ui/loading";
 import { Toast, useToast } from "@/components/ui/toast";
 import { ErrorPage } from "@/components/ui/error";
@@ -330,43 +337,66 @@ export default function ChatsPage() {
           </div>
         ) : (
           rooms.map((room) => (
-            <div key={room.id} className="p-4 border rounded-lg">
-              <div className="flex justify-between items-start mb-2">
-                <Link href={`/chats/${room.id}`} className="flex-1">
-                  <div className="hover:bg-accent/50 transition-colors p-2 -m-2 rounded">
-                    <div className="flex justify-between items-center">
-                      <h2 className="font-semibold">{room.name}</h2>
-                      <span className="text-sm text-muted-foreground">
-                        {new Date(room.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
+            <div
+              key={room.id}
+              className="group border rounded-lg overflow-hidden hover:shadow-md transition-all duration-200"
+            >
+              <Link href={`/chats/${room.id}`} className="block">
+                <div className="p-4 hover:bg-accent/30 transition-colors">
+                  <div className="flex justify-between items-start mb-3">
+                    <h2 className="font-semibold text-lg group-hover:text-primary transition-colors">
+                      {room.name}
+                    </h2>
+                    <span className="text-sm text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                      {new Date(room.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-6 text-sm text-muted-foreground mb-3">
+                    <div className="flex items-center gap-1">
+                      <Users className="h-4 w-4" />
                       <span>{room.memberCount} members</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <MessageCircle className="h-4 w-4" />
                       <span>{room.messageCount} messages</span>
                     </div>
                   </div>
-                </Link>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleCopyRoomId(room.id, room.name);
-                  }}
-                  className="ml-2 flex-shrink-0"
-                >
-                  {copiedRoomId === room.id ? (
-                    <>
-                      <Check className="h-4 w-4 mr-1" />
-                      Copied
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4 mr-1" />
-                      Copy ID
-                    </>
-                  )}
-                </Button>
+                </div>
+              </Link>
+
+              <div className="px-4 pb-4">
+                <div className="flex items-center justify-between bg-muted/50 rounded-md p-2 border border-border/50">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Room ID
+                    </span>
+                    <code className="text-xs font-mono bg-background px-2 py-1 rounded border truncate">
+                      {room.id}
+                    </code>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleCopyRoomId(room.id, room.name);
+                    }}
+                    className="flex-shrink-0 h-8 px-2 text-xs hover:bg-background/80"
+                  >
+                    {copiedRoomId === room.id ? (
+                      <>
+                        <Check className="h-3 w-3 mr-1 text-green-600" />
+                        <span className="text-green-600">Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3 w-3 mr-1" />
+                        Copy
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
           ))
