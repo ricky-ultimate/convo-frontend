@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
-import { Plus, DoorOpen } from "lucide-react";
+import { Plus, DoorOpen, Copy, Check } from "lucide-react";
 import { LoadingPage } from "@/components/ui/loading";
 import { Toast, useToast } from "@/components/ui/toast";
 import { ErrorPage } from "@/components/ui/error";
@@ -28,6 +28,7 @@ export default function ChatsPage() {
   const [joinRoomId, setJoinRoomId] = useState("");
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [isJoiningRoom, setIsJoiningRoom] = useState(false);
+  const [copiedRoomId, setCopiedRoomId] = useState<string | null>(null);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
@@ -186,6 +187,32 @@ export default function ChatsPage() {
     }
   };
 
+  const handleCopyRoomId = async (roomId: string, roomName: string) => {
+    try {
+      await navigator.clipboard.writeText(roomId);
+      setCopiedRoomId(roomId);
+      addToast({
+        type: "success",
+        title: "Room ID copied",
+        description: `Room ID for "${roomName}" copied to clipboard`,
+      });
+
+      setTimeout(() => {
+        setCopiedRoomId(null);
+      }, 2000);
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Could not copy room ID to clipboard";
+      addToast({
+        type: "error",
+        title: "Failed to copy",
+        description: errorMessage,
+      });
+    }
+  };
+
   const handleRetry = useCallback(() => {
     setIsLoading(true);
     setError("");
@@ -303,20 +330,45 @@ export default function ChatsPage() {
           </div>
         ) : (
           rooms.map((room) => (
-            <Link key={room.id} href={`/chats/${room.id}`}>
-              <div className="p-4 border rounded-lg hover:bg-accent/50 transition-colors">
-                <div className="flex justify-between items-center">
-                  <h2 className="font-semibold">{room.name}</h2>
-                  <span className="text-sm text-muted-foreground">
-                    {new Date(room.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-                <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
-                  <span>{room.memberCount} members</span>
-                  <span>{room.messageCount} messages</span>
-                </div>
+            <div key={room.id} className="p-4 border rounded-lg">
+              <div className="flex justify-between items-start mb-2">
+                <Link href={`/chats/${room.id}`} className="flex-1">
+                  <div className="hover:bg-accent/50 transition-colors p-2 -m-2 rounded">
+                    <div className="flex justify-between items-center">
+                      <h2 className="font-semibold">{room.name}</h2>
+                      <span className="text-sm text-muted-foreground">
+                        {new Date(room.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
+                      <span>{room.memberCount} members</span>
+                      <span>{room.messageCount} messages</span>
+                    </div>
+                  </div>
+                </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleCopyRoomId(room.id, room.name);
+                  }}
+                  className="ml-2 flex-shrink-0"
+                >
+                  {copiedRoomId === room.id ? (
+                    <>
+                      <Check className="h-4 w-4 mr-1" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4 mr-1" />
+                      Copy ID
+                    </>
+                  )}
+                </Button>
               </div>
-            </Link>
+            </div>
           ))
         )}
       </div>

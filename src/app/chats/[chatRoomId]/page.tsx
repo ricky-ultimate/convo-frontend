@@ -5,9 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import { useSocket } from "@/hooks/useSocket";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send, ArrowLeft } from "lucide-react";
+import { Send, ArrowLeft, Copy, Check } from "lucide-react";
 import { LoadingPage, LoadingSpinner } from "@/components/ui/loading";
 import { ErrorPage } from "@/components/ui/error";
+import { Toast, useToast } from "@/components/ui/toast";
 
 interface Message {
   id: string;
@@ -28,6 +29,7 @@ interface RoomInfo {
 export default function ChatRoom() {
   const { chatRoomId } = useParams();
   const router = useRouter();
+  const { toasts, addToast, removeToast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [message, setMessage] = useState("");
@@ -37,6 +39,7 @@ export default function ChatRoom() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const [error, setError] = useState("");
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [copiedRoomId, setCopiedRoomId] = useState(false);
 
   const roomId = Array.isArray(chatRoomId) ? chatRoomId[0] : chatRoomId;
 
@@ -163,6 +166,34 @@ export default function ChatRoom() {
     }
   };
 
+  const handleCopyRoomId = async () => {
+    if (!roomId) return;
+
+    try {
+      await navigator.clipboard.writeText(roomId);
+      setCopiedRoomId(true);
+      addToast({
+        type: "success",
+        title: "Room ID copied",
+        description: "Room ID copied to clipboard",
+      });
+
+      setTimeout(() => {
+        setCopiedRoomId(false);
+      }, 2000);
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Could not copy room ID to clipboard";
+      addToast({
+        type: "error",
+        title: "Failed to copy",
+        description: errorMessage,
+      });
+    }
+  };
+
   const handleRetry = useCallback(() => {
     setIsLoading(true);
     setIsLoadingMessages(true);
@@ -211,6 +242,18 @@ export default function ChatRoom() {
 
   return (
     <div className="flex flex-col h-screen">
+      <div className="fixed top-4 right-4 z-50 space-y-2">
+        {toasts.map((toast) => (
+          <Toast
+            key={toast.id}
+            type={toast.type}
+            title={toast.title}
+            description={toast.description}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
+      </div>
+
       <div className="border-b p-4 flex items-center gap-4">
         <Button
           variant="ghost"
@@ -231,6 +274,24 @@ export default function ChatRoom() {
             </p>
           )}
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleCopyRoomId}
+          className="flex-shrink-0"
+        >
+          {copiedRoomId ? (
+            <>
+              <Check className="h-4 w-4 mr-2" />
+              Copied
+            </>
+          ) : (
+            <>
+              <Copy className="h-4 w-4 mr-2" />
+              Copy Room ID
+            </>
+          )}
+        </Button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
