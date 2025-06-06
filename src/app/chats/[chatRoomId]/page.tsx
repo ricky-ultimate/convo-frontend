@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSocket } from "@/hooks/useSocket";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Send, ArrowLeft } from "lucide-react";
+import { LoadingPage, LoadingSpinner } from "@/components/ui/loading";
+import { ErrorPage } from "@/components/ui/error";
 
 interface Message {
   id: string;
@@ -17,6 +19,12 @@ interface Message {
   };
 }
 
+interface RoomInfo {
+  id: string;
+  name: string;
+  memberCount: number;
+}
+
 export default function ChatRoom() {
   const { chatRoomId } = useParams();
   const router = useRouter();
@@ -24,14 +32,97 @@ export default function ChatRoom() {
 
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [roomInfo, setRoomInfo] = useState<RoomInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const [error, setError] = useState("");
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
 
   const roomId = Array.isArray(chatRoomId) ? chatRoomId[0] : chatRoomId;
 
-  const { sendMessage, messages: socketMessages } = useSocket(roomId || "");
+  const { sendMessage: socketSendMessage, messages: socketMessages } =
+    useSocket(roomId || "");
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
+  const fetchRoomInfo = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${apiUrl}/chat/room/${roomId}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.status === 401) {
+        localStorage.removeItem("token");
+        router.push("/auth/login");
+        return;
+      }
+
+      if (res.status === 404) {
+        setError("Room not found");
+        return;
+      }
+
+      if (res.status === 403) {
+        setError("You don't have access to this room");
+        return;
+      }
+
+      if (!res.ok) {
+        throw new Error("Failed to fetch room information");
+      }
+
+      const data = await res.json();
+      setRoomInfo(data);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to load room information"
+      );
+    }
+  }, [apiUrl, roomId, router]);
+
+  const fetchMessages = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${apiUrl}/chat/room/${roomId}/messages`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.status === 401) {
+        localStorage.removeItem("token");
+        router.push("/auth/login");
+        return;
+      }
+
+      if (res.status === 404) {
+        setError("Room not found");
+        return;
+      }
+
+      if (res.status === 403) {
+        setError("You don't have access to this room");
+        return;
+      }
+
+      if (!res.ok) {
+        throw new Error("Failed to fetch messages");
+      }
+
+      const data = await res.json();
+      setMessages(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load messages");
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  }, [apiUrl, roomId, router]);
 
   useEffect(() => {
     if (!roomId) {
@@ -46,59 +137,77 @@ export default function ChatRoom() {
       return;
     }
 
-    async function fetchMessages() {
-      try {
-        const res = await fetch(`${apiUrl}/chat/room/${roomId}/messages`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
+    const loadRoomData = async () => {
+      await Promise.all([fetchRoomInfo(), fetchMessages()]);
+      setIsLoading(false);
+    };
 
-        if (res.status === 401) {
-          localStorage.removeItem("token");
-          router.push("/auth/login");
-          return;
-        }
-
-        if (!res.ok) {
-          throw new Error("Failed to fetch messages");
-        }
-
-        const data = await res.json();
-        setMessages(Array.isArray(data) ? data : []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchMessages();
-  }, [roomId, router, apiUrl]);
+    loadRoomData();
+  }, [roomId, router, fetchRoomInfo, fetchMessages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, socketMessages]);
 
-  const handleSend = () => {
-    if (message.trim() && roomId) {
-      sendMessage(message);
+  const handleSend = async () => {
+    if (!message.trim() || !roomId || isSendingMessage) return;
+
+    setIsSendingMessage(true);
+    try {
+      socketSendMessage(message);
       setMessage("");
+    } catch (err) {
+      // Use a more specific error handling instead of console.error
+      setError(err instanceof Error ? err.message : "Failed to send message");
+    } finally {
+      setIsSendingMessage(false);
     }
   };
 
+  const handleRetry = useCallback(() => {
+    setIsLoading(true);
+    setIsLoadingMessages(true);
+    setError("");
+    const loadRoomData = async () => {
+      await Promise.all([fetchRoomInfo(), fetchMessages()]);
+      setIsLoading(false);
+    };
+    loadRoomData();
+  }, [fetchRoomInfo, fetchMessages]);
+
+  const handleGoBack = () => {
+    router.push("/chats");
+  };
+
   if (!roomId) {
-    return <div className="p-4 text-destructive">Invalid room ID</div>;
+    return (
+      <ErrorPage
+        title="Invalid Room"
+        description="The room ID provided is not valid"
+        onGoHome={handleGoBack}
+        showRetry={false}
+      />
+    );
   }
 
   if (isLoading) {
-    return <div className="p-4">Loading messages...</div>;
+    return (
+      <LoadingPage
+        title="Loading chat room..."
+        description="Please wait while we prepare your conversation"
+      />
+    );
   }
 
   if (error) {
-    return <div className="p-4 text-destructive">{error}</div>;
+    return (
+      <ErrorPage
+        title="Failed to load chat room"
+        description={error}
+        onRetry={handleRetry}
+        onGoHome={handleGoBack}
+      />
+    );
   }
 
   return (
@@ -107,27 +216,57 @@ export default function ChatRoom() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => router.push("/chats")}
+          onClick={handleGoBack}
           className="hover:bg-accent"
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h2 className="text-xl font-semibold">Room: {roomId}</h2>
+        <div className="flex-1">
+          <h2 className="text-xl font-semibold">
+            {roomInfo?.name || `Room: ${roomId}`}
+          </h2>
+          {roomInfo && (
+            <p className="text-sm text-muted-foreground">
+              {roomInfo.memberCount}{" "}
+              {roomInfo.memberCount === 1 ? "member" : "members"}
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {[...messages, ...socketMessages].map((msg) => (
-          <div key={msg.id} className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold">{msg.user.username}</span>
-              <span className="text-xs text-muted-foreground">
-                {new Date(msg.createdAt).toLocaleTimeString()}
-              </span>
+        {isLoadingMessages ? (
+          <div className="flex justify-center items-center py-8">
+            <div className="text-center space-y-4">
+              <LoadingSpinner size="lg" />
+              <p className="text-muted-foreground">Loading messages...</p>
             </div>
-            <p className="text-sm">{msg.content}</p>
           </div>
-        ))}
-        <div ref={messagesEndRef} />
+        ) : (
+          <>
+            {[...messages, ...socketMessages].length === 0 ? (
+              <div className="text-center py-12">
+                <h3 className="text-lg font-semibold mb-2">No messages yet</h3>
+                <p className="text-muted-foreground">
+                  Be the first to start the conversation!
+                </p>
+              </div>
+            ) : (
+              [...messages, ...socketMessages].map((msg) => (
+                <div key={msg.id} className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">{msg.user.username}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(msg.createdAt).toLocaleTimeString()}
+                    </span>
+                  </div>
+                  <p className="text-sm">{msg.content}</p>
+                </div>
+              ))
+            )}
+            <div ref={messagesEndRef} />
+          </>
+        )}
       </div>
 
       <div className="border-t p-4">
@@ -137,10 +276,20 @@ export default function ChatRoom() {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Type a message..."
-            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            onKeyDown={(e) =>
+              e.key === "Enter" && !isSendingMessage && handleSend()
+            }
+            disabled={isSendingMessage}
           />
-          <Button onClick={handleSend}>
-            <Send className="h-4 w-4" />
+          <Button
+            onClick={handleSend}
+            disabled={isSendingMessage || !message.trim()}
+          >
+            {isSendingMessage ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-background border-t-transparent" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
           </Button>
         </div>
       </div>
