@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSocket } from "@/hooks/useSocket";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send, ArrowLeft, Copy, Check } from "lucide-react";
+import { Send, ArrowLeft, Copy, Check, DoorOpen } from "lucide-react";
 import { LoadingPage, LoadingSpinner } from "@/components/ui/loading";
 import { ErrorPage } from "@/components/ui/error";
 import { Toast, useToast } from "@/components/ui/toast";
@@ -209,6 +209,40 @@ export default function ChatRoom() {
     router.push("/chats");
   };
 
+  const handleLeaveRoom = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${apiUrl}/chat/leave/${roomId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to leave room");
+      }
+
+      addToast({
+        type: "success",
+        title: "Left room",
+        description: "You have successfully left the room",
+      });
+
+      router.push("/chats");
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to leave room";
+      addToast({
+        type: "error",
+        title: "Failed to leave room",
+        description: errorMessage,
+      });
+    }
+  };
+
   if (!roomId) {
     return (
       <ErrorPage
@@ -274,24 +308,35 @@ export default function ChatRoom() {
             </p>
           )}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleCopyRoomId}
-          className="flex-shrink-0"
-        >
-          {copiedRoomId ? (
-            <>
-              <Check className="h-4 w-4 mr-2" />
-              Copied
-            </>
-          ) : (
-            <>
-              <Copy className="h-4 w-4 mr-2" />
-              Copy Room ID
-            </>
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCopyRoomId}
+            className="flex-shrink-0"
+          >
+            {copiedRoomId ? (
+              <>
+                <Check className="h-4 w-4 mr-2" />
+                Copied
+              </>
+            ) : (
+              <>
+                <Copy className="h-4 w-4 mr-2" />
+                Copy Room ID
+              </>
+            )}
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleLeaveRoom}
+            className="flex-shrink-0"
+          >
+            <DoorOpen className="h-4 w-4 mr-2" />
+            Leave Room
+          </Button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
